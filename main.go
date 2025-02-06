@@ -14,9 +14,11 @@ func main() {
 	characters := getCharacters()
 	password := string(characters[0])
 
+	// 非同期処理同時実行数制御用Channel
 	sem := make(chan struct{}, goroutineMaxNum)
 
 	for {
+		// 同時実行数消費
 		sem <- struct{}{}
 
 		okChan := make(chan bool)
@@ -26,6 +28,7 @@ func main() {
 				okChan <- true
 			}
 
+			// 同時実行数開放
 			<-sem
 		}(url, password)
 
