@@ -84,6 +84,9 @@ func getCharacters() []rune {
 		characters = append(characters, character)
 	}
 
+	for i := '0'; i <= '9'; i++ {
+		addCharacter(i)
+	}
 	for i := 'a'; i <= 'z'; i++ {
 		addCharacter(i)
 	}
